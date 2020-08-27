@@ -60,14 +60,28 @@ def plotThem(activities, data):
 #================================
 
 #preprocessing
+# =============================================================================
+# for index, fileline in enumerate(lines):
+#     #Extracting the data from the file
+#     try:
+#         line = fileline.split(",")
+#         last = line[5].split(";")[0]
+#         if last == "":
+#             break
+#         temp = [line[0], line[1], line[2], line[3], line[4], last]
+#         processedList.append(temp)
+#     except:
+#         print("Error with line", index)
+# =============================================================================
+
+
 for index, fileline in enumerate(lines):
     #Extracting the data from the file
     try:
-        line = fileline.split(",")
-        last = line[5].split(";")[0]
-        if last == "":
+        line = fileline.split(";")[0].split(",")
+        if line[5] == "":
             break
-        temp = [line[0], line[1], line[2], line[3], line[4], last]
+        temp = line
         processedList.append(temp)
     except:
         print("Error with line", index)
