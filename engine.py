@@ -15,244 +15,192 @@ from tensorflow.keras.optimizers import Adam
 import scipy.stats as stats
 
 
-#loading the dataset file
-file = open("WISDM_ar_v1.1/WISDM_ar_v1.1_raw.txt")
-lines = file.readlines()
+class HAS_engine:
 
-processedList = []
-balanced_data = pd.DataFrame()
-model = Sequential()
-scaled_x = pd.DataFrame(data = X, columns = ["x","y", "z"])
+    def __init__(self):
+        #defining attributes
+        self.processedList = []
+        self.balanced_data = pd.DataFrame()
+        self.model = Sequential()
 
+        self.Fs = 20 #contain the number of frames per second
+        self.frame_size = self.Fs * 4
+        self.hop_size = self.Fs * 2
+        self.numFeatures = 3
 
-Fs = 20 #frames per second
-#=====================================
-# ploting functions
-def plot_activity(activity, data):
-    fig, (ax0, ax1, ax2) = plt.subplots(nrows =3, figsize=(15,7), sharex=True)
-    plot_axis(ax0, data["time"], data["x"], "X-Axis")
-    plot_axis(ax1, data["time"], data["y"], "Y-Axis")
-    plot_axis(ax2, data["time"], data["z"], "Z-Axis")
-    plt.subplots_adjust(hspace = 0.2)
-    fig.suptitle(activity)
-    plt.subplots_adjust(top = 0.90)
-    plt.show()
-
-
-def plot_axis(ax, x, y ,title):
-    ax.plot(x, y, "g")
-    ax.set_title(title)
-    ax.xaxis.set_visible(False)
-    ax.set_ylim([min(y) - np.std(y), max(y) + np.std(y)])
-    ax.set_xlim([min(x), max(x)])
-    ax.grid(True)
-
-
-def plotThem(activities, data):
-    for activity in activities:
-        data_for_plot = data[(data["activity"] == activity)] [:Fs *10]
-        plot_activity(activity, data_for_plot)
-
-
-
-
-
-
-
-
-
+        self.fig = None
+        self.data = None
+        self.filelines = None
 
-#================================
 
-#preprocessing
-# =============================================================================
-# for index, fileline in enumerate(lines):
-#     #Extracting the data from the file
-#     try:
-#         line = fileline.split(",")
-#         last = line[5].split(";")[0]
-#         if last == "":
-#             break
-#         temp = [line[0], line[1], line[2], line[3], line[4], last]
-#         processedList.append(temp)
-#     except:
-#         print("Error with line", index)
-# =============================================================================
+        self.x_train = None
+        self.x_test = None
+        self.y_train = None
+        self.y_test = None
 
-def preprocessing():
-    for index, fileline in enumerate(lines):
-        #Extracting the data from the file
-        try:
-            line = fileline.split(";")[0].split(",")
-            if line[5] == "":
-                break
-            temp = line[0:6]
-            processedList.append(temp)
-        except:
-            print("Error with line", index)
+        self.scaled_x = None
+        self.frames = None
+        self.labels = None
 
 
-#second part
-#balancing data
-def balanceData(balanced_data):
-    columns = ["user", "activity", "time", "x", "y", "z"]
-    data = pd.DataFrame(data = processedList, columns = columns)
-
-
-    #Changing the data type of x,y and z values from strings to floats
-    data["x"] = data["x"].astype("float")
-    data["y"] = data["y"].astype("float")
-    data["z"] = data["z"].astype("float")
 
-    #plotting the data for each activity
-    # =============================================================================
-    # activities = data["activity"].value_counts().index
-    # plotThem(activities, data)
-    # =============================================================================
 
 
-    #removing timestamp and userid on dataset
-    df = data.drop(["user","time"], axis=1).copy()
-# =============================================================================
-# print(df.head()) #looking ath the dataframe
-# =============================================================================
 
-# =============================================================================
-# print(data["activity"].value_counts() ) #Gets information about the dataframe sizes
-# =============================================================================
 
-    #Balancing the datasets to avoid baises by creating dataframes for each activity
-    walking = df[df["activity"] == "Walking"].head(48395).copy()
-    jogging = df[df["activity"] == "Jogging"].head(48395).copy()
-    upstairs = df[df["activity"] == "Upstairs"].head(48395).copy()
-    downstairs = df[df["activity"] == "Downstairs"].head(48395).copy()
-    sitting = df[df["activity"] == "Sitting"].head(48395).copy()
-    standing = df[df["activity"] == "Standing"].head(48395).copy()
 
-    #combining
-    balanced_data = balanced_data.append([walking, jogging, upstairs, downstairs, sitting, standing])
-    # =============================================================================
-    # print(balanced_data["activity"].value_counts() )
-    # =============================================================================
 
-    #Making the activity a label
-    label = LabelEncoder()
-    balanced_data["label"] = label.fit_transform(balanced_data["activity"])
-    return balanced_data
 
-#checking if the encoding worked
-# =============================================================================
-# print(balanced_data.head())
-# print(label.classes_)
-# =============================================================================
+    #ploting the data from the accelerometer datasets
+    def plot_activity(self):
+        self.fig, (x_ax, y_ax, z_ax) = plt.subplots(nrows = 3, figsize = (15,7), sharex=True)
+        self.plot_axis(x_ax, self.data["time"], self.data["x"], "X-Axis")
+        self.plot_axis(y_ax, self.data["time"], self.data["y"], "Y-Axis")
+        self.plot_axis(z_ax, self.data["time"], self.data["z"], "Z-Axis")
+        plt.subplots_adjust(hspace = 0.2)
+        self.fig.suptitle(self.activity)
+        plt.suptitle_adjust(top = 0.90)
+        plt.show()
 
-#standardizing data
-def standardizeData(scaled_x, balanced_data):
-    X = balanced_data[["x","y","z"]]
-    Y = balanced_data["label"]
 
-    #standardizing x
-    scaler = StandardScaler()
-    X = scaler.fit_transform(X)
+    def plot_axis(self, ax, x, y ,title):
+        ax.plot(x, y, "g")
+        ax.set_title(title)
+        ax.xaxis.set_visible(False)
+        ax.set_ylim([min(y) - np.std(y), max(y) + np.std(y)])
+        ax.set_xlim([min(x), max(x)])
+        ax.grid(True)
 
-    scaled_x["label"] = Y.values
 
-    print(scaled_x) #looking at the scaled dataframe
-    return (scaled_x)
 
+    def plotThem(self,activities, data):
+        for activity in activities:
+            data_for_plot = data[(data["activity"] == activity)] [:self.Fs *10]
+            self.plot_activity(activity, data_for_plot)
 
+    #reads the dataset file into the engine
+    def loadData(self):
+        file = open("WISDM_ar_v1.1/WISDM_ar_v1.1_raw.txt")
+        self.filelines = file.readlines()
 
+    #Preprocesses the datasets for learning
+    def preprocessing(self):
+        for index, fileLine in enumerate(self.filelines):
+            try:
+                line = fileLine.split(";")[0].split(",")
+                if line[5] == "":
+                    break
+                self.processedList.append( line[0:6] )
+            except:
+                print("Error with line", index)
 
 
-#Frame preparations
-def prepareFrames(frame_size = Fs *4, hop_size = Fs*2, N_FEATURES = 3):
-# =============================================================================
-#     frame_size = Fs * 4 #getting data for 4 seconds (80 samples)
-#     hop_size = Fs *2 #length of clip
-# =============================================================================
+    #Balances the dataset
+    def balancedData(self):
+        columns = ["user", "activity", "time", "x", "y", "z"]
+        self.data = pd.DataFrame( data = self.processedList, columns = columns)
 
-# =============================================================================
-#     #getting frames
-#         N_FEATURES = 3
-# =============================================================================
 
-    frames = []
-    labels = []
-    for i in range(0, len(scaled_x) - frame_size, hop_size):
-        xTemp = scaled_x["x"].values[i: i + frame_size]
-        yTemp = scaled_x["y"].values[i: i + frame_size]
-        zTemp = scaled_x["z"].values[i: i + frame_size]
+        #Changing the data type of x,y and z values from strings to floats
+        self.data["x"] = self.data["x"].astype("float")
+        self.data["y"] = self.data["y"].astype("float")
+        self.data["z"] = self.data["z"].astype("float")
 
-        #retrieving the most used label in segment
-        label = stats.mode(scaled_x["label"][i: i + frame_size])[0][0]
-        frames.append([xTemp, yTemp ,zTemp])
-        labels.append(label)
+        #removing timestand and userid from datasets
+        tempFrame = self.data.drop(["user", "time"], axis =1).copy()
 
-#Bring the segments into a better shape
-    frames = np.asarray(frames).reshape(-1, frame_size, N_FEATURES)
-    labels = np.asarray(labels)
-    return frames, labels
+        #the number was chosen from the number smallest number of datasets per activity
+        walking = tempFrame[ tempFrame["activity"] == "Walking"].head(48395).copy()
+        jogging = tempFrame[ tempFrame["activity"] == "Jogging"].head(48395).copy()
+        upstairs = tempFrame[ tempFrame["activity"] == "Upstairs"].head(48395).copy()
+        downstairs = tempFrame[ tempFrame["activity"] == "Downstairs"].head(48395).copy()
+        sitting = tempFrame[ tempFrame["activity"] == "Sitting"].head(48395).copy()
+        standing = tempFrame[ tempFrame["activity"] == "Standing"].head(48395).copy()
 
-# =============================================================================
-# print("frames")
-# print(frames.shape)
-#
-# print("labels")
-# print(labels.shape)
-# =============================================================================
+        #combing the dataframes
+        #todo this line was balanced_data = balanced_data ...
+        self.balanced_data = self.balanced_data.append([walking, jogging, upstairs, downstairs, sitting, standing])
 
+        #creating an activity label
+        label = LabelEncoder()
+        self.balanced_data["label"] = label.fit_transform( self.balanced_data["activity"])
 
 
 
+    #standardizing the data
+    def standardizeData(self):
+        X = self.balanced_data[["x", "y", "z"]]
+        Y = self.balanced_data["label"]
+        self.scaled_x = pd.DataFrame(data = X, columns = ["x", "y", "z"])
 
+        scale = StandardScaler()
+        X = scale.fit_transform(X)
 
-#training
-def reshapeData(frames, labels):
-    x_train, x_test, y_train, y_test = train_test_split(frames, labels, test_size = 0.2, random_state = 0, stratify = labels)
-    print(x_train.shape)
-    print(x_test.shape)
+        self.scaled_x["label"] = Y.values
 
+        print(self.scaled_x)
 
-    #reshaping training data into 3d because cnn can't work with 2d data
-    x_train = x_train.reshape(5806, 80, 3, 1)
-    x_test = x_test.reshape(1452, 80, 3, 1)
-    return x_train, x_test, y_train, y_test
 
+    #Preparing the frames for analysing
+    def prepareFrames(self):
+        framesTemp=[]
+        labelsTemp = []
 
 
-#2d CNN model
-def buildModel(model, x_train, x_test, y_train, y_test):
-    model.add( Conv2D(16, (2,2), activation = "relu", input_shape = x_train[0].shape) )
-    model.add(Dropout(0.1))
 
-    model.add(Conv2D (32, (2,2), activation = "relu"))
-    model.add(Dropout(0.2))
+        for i in range(0, len(self.scaled_x) - self.frame_size, self.hop_size ):
+            xtemp = self.scaled_x["x"].values[i: i + self.frame_size]
+            ytemp = self.scaled_x["y"].values[i: i + self.frame_size]
+            ztemp = self.scaled_x["z"].values[i: i + self.frame_size]
 
-    model.add(Flatten())
+            tempLabel = stats.mode( self.scaled_x["label"][i: i + self.frame_size] )[0][0]
+            framesTemp.append( [xtemp, ytemp, ztemp] )
+            labelsTemp.append(tempLabel)
 
-    model.add(Dense(64, activation = "relu"))
-    model.add(Dropout(0.5))
+            self.frames = np.asarray(framesTemp).reshape(-1, self.frame_size, self.numFeatures)
+            self.labels = np.asarray(labelsTemp)
 
-    model.add(Dense(6, activation = "softmax"))
+    #Reshaping data
+    def reshapeData(self):
+        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.frames, self.labels, test_size = 0.2, random_state = 0, stratify = self.labels)
 
+        #reshaping training data into 3d because cnn can't work with 2d data
+        self.x_train = self.x_train.reshape(5806,80,3,1)
+        self.x_test = self.x_test.reshape(1452,80,3,1)
 
-    model.compile(optimizer = Adam(learning_rate = 0.001), loss = "sparse_categorical_crossentropy", metrics = ["accuracy"])
-    history = model.fit(x_train, y_train, epochs = 10, validation_data = (x_test, y_test), verbose =1)
-    return history
 
-def saveModel(model):
-    model.save_weights("model weights.h5")
 
+    #building the 3d CNN model
+    def buildModel(self):
+        self.model.add( Conv2D(16, (2,2), activation = "relu", input_shape = self.x_train[0].shape) )
+        self.model.add(Dropout(0.1))
 
+        self.model.add( Conv2D(32, (2,2), activation = "relu") )
+        self.model.add(Dropout(0.2))
 
+        self.model.add(Flatten())
 
+        self.model.add(Dense(64, activation = "relu"))
+        self.model.add(Dropout(0.5))
 
-#Running the program
-preprocessing()
-balanced_data = balanceData(balanced_data)
-scaled_x = standardizeData(scaled_x, balanced_data)
-frames, labels = prepareFrames()
-x_train, x_test, y_train, y_test = reshapeData(frames, labels)
-history = buildModel(model, x_train, x_test, y_train, y_test)
-saveModel(model)
+        self.model.add(Dense(6, activation = "softmax"))
 
+        self.model.compile(optimizer = Adam(learning_rate = 0.001), loss = "sparse_categorical_crossentropy", metrics = ["accuracy"])
+        self.history = self.model.fit( self.x_train, self.y_train, epochs = 10, validation_data = (self.x_test, self.y_test), verbose = 1)
+
+    def saveModel(self):
+        self.model.save_weights("Model weights.h5")
+
+
+
+#running the program
+engine = HAS_engine()
+
+engine.loadData()
+engine.preprocessing()
+engine.balancedData()
+engine.standardizeData()
+engine.prepareFrames()
+engine.reshapeData()
+engine.buildModel()
+engine.saveModel()
